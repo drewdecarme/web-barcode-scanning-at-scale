@@ -1,0 +1,19 @@
+{
+  "name": "your-browser-is-pooped",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drewdecarme/your-browser-is-pooped.git"
+  },
+  "author": "Drew DeCarme (drewdecarme@gmail.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/drewdecarme/your-browser-is-pooped/issues"
+  },
+  "homepage": "https://github.com/drewdecarme/your-browser-is-pooped#readme"
+}
