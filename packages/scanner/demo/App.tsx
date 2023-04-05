@@ -5,6 +5,7 @@ import { GridLogs } from "./GridLog";
 import { GridCanvas } from "./GridCanvas";
 import { GridVideo } from "./GridVideo";
 import { GridUtils } from "./GridUtils";
+import { GridScan } from "./GridScan";
 
 function App() {
   const debugCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -12,6 +13,7 @@ function App() {
     logs: true,
     canvas: true,
   });
+  const [result, setResult] = useState<string>("");
 
   const { setVideoRef, logs } = useScanner({
     debug: {
@@ -21,6 +23,7 @@ function App() {
     video: {
       maxWidth: 300,
     },
+    onScan: setResult,
   });
 
   return (
@@ -32,6 +35,7 @@ function App() {
       <GridCanvas>
         <canvas ref={debugCanvasRef}></canvas>
       </GridCanvas>
+      <GridScan>{result}</GridScan>
       <GridLogs logs={logs} />
     </div>
   );

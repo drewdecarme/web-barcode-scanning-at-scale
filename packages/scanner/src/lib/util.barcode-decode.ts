@@ -15,14 +15,19 @@ import {
 } from "@zxing/library";
 
 const hints = new Map();
-const formats = [BarcodeFormat.QR_CODE, BarcodeFormat.CODE_128];
+const formats = [
+  BarcodeFormat.QR_CODE,
+  BarcodeFormat.CODE_128,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+];
 
 hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
 hints.set(DecodeHintType.TRY_HARDER, true);
-
 const reader = new MultiFormatReader();
-
 reader.setHints(hints);
+
+export type DecodeBarcodeReturn = ReturnType<typeof decodeBarcode>;
 
 /**
  * A utility that reads an ImageData instance
@@ -51,9 +56,11 @@ export const decodeBarcode = (imageData: ImageData) => {
       imageData.height
     );
 
-    return reader
-      .decode(new BinaryBitmap(new HybridBinarizer(luminanceSource)))
-      .getText();
+    const result = reader.decode(
+      new BinaryBitmap(new HybridBinarizer(luminanceSource))
+    );
+
+    return result;
   } catch (error) {
     return null;
   }

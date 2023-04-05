@@ -22,6 +22,7 @@ export type UseScannerParams = {
   video: {
     maxWidth: number;
   };
+  onScan: (result: string) => void;
 };
 
 /**
@@ -29,13 +30,13 @@ export type UseScannerParams = {
  * node that will turn the video on and attempt to
  * read the output if a QR or 1D scannable area is detected
  */
-export const useScanner = (params: UseScannerParams) => {
+export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
   const [logs, setLog] = useState<UseScannerLog[]>([]);
-  const shouldLogRef = useRef<boolean>(params.debug?.enableLogging ?? false);
+  const shouldLogRef = useRef<boolean>(debug?.enableLogging ?? false);
 
   const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
   const canvasDebugRef = useRef<HTMLCanvasElement | null>(
-    params.debug?.canvasRef?.current ?? null
+    debug?.canvasRef?.current ?? null
   );
 
   /**
@@ -66,21 +67,21 @@ export const useScanner = (params: UseScannerParams) => {
    */
   useEffect(() => {
     // enable or disable logging
-    shouldLogRef.current = params.debug?.enableLogging ?? false;
+    shouldLogRef.current = debug?.enableLogging ?? false;
     logMessage({
       level: "INFO",
       message: `Logging ${shouldLogRef.current ? "enabled" : "disabled"}`,
     });
 
     // enable or disable canvas debugging
-    canvasDebugRef.current = params.debug?.canvasRef?.current ?? null;
+    canvasDebugRef.current = debug?.canvasRef?.current ?? null;
     logMessage({
       level: "INFO",
       message: `Canvas Debugging ${
         canvasDebugRef.current ? "enabled" : "disabled"
       }`,
     });
-  }, [logMessage, params.debug?.canvasRef, params.debug?.enableLogging]);
+  }, [logMessage, debug?.canvasRef, debug?.enableLogging]);
 
   /**
    * SECRET SAUCE
@@ -96,7 +97,7 @@ export const useScanner = (params: UseScannerParams) => {
       if (!videoNode) return;
 
       // 1. Set some of the configuration properties
-      videoNode.style.maxWidth = `${params.video.maxWidth}px`;
+      videoNode.style.maxWidth = `${video.maxWidth}px`;
       videoNode.autoplay = true;
 
       // 2. Get the video stream and set it to the video element
@@ -128,16 +129,16 @@ export const useScanner = (params: UseScannerParams) => {
         logMessage({ level: "INFO", message: "Set canvas dimensions" });
         // 3.1 Set the debug canvas element to the _real_ height of the video
         // this only becomes available when the metadata has loaded
-        if (params.debug?.canvasRef?.current) {
-          params.debug.canvasRef.current.width = videoNode.videoWidth;
-          params.debug.canvasRef.current.height = videoNode.videoHeight;
-          params.debug.canvasRef.current.style.maxWidth = params.video.maxWidth
+        if (debug?.canvasRef?.current) {
+          debug.canvasRef.current.width = videoNode.videoWidth;
+          debug.canvasRef.current.height = videoNode.videoHeight;
+          debug.canvasRef.current.style.maxWidth = video.maxWidth
             .toString()
             .concat("px");
         }
       });
 
-      // 4. Create an offscreen canvas element to store the video data
+      // 4. Get the context of both canvas elements
       // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
       const canvasContext = canvasRef.current.getContext("2d", {
         alpha: false,
@@ -174,12 +175,15 @@ export const useScanner = (params: UseScannerParams) => {
           videoNode.videoHeight
         );
         // 8. Decode the imagedata
+        // const barcode = detectBarcode(canvasImageData);
         const result = decodeBarcode(canvasImageData);
         if (!result) return;
-        logMessage({ level: "DEBUG", message: result });
+        const textResult = result.getText();
+        onScan(textResult);
+        logMessage({ level: "DEBUG", message: textResult });
       });
     },
-    [logMessage, params.debug?.canvasRef, params.video.maxWidth]
+    [logMessage, debug?.canvasRef, video.maxWidth, onScan]
   );
 
   return { setVideoRef, logs };
