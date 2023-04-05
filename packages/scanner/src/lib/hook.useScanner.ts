@@ -24,17 +24,27 @@ export type UseScannerParams = {
   };
 };
 
+/**
+ * Returns a callback reference to supply to a `video`
+ * node that will turn the video on and attempt to
+ * read the output if a QR or 1D scannable area is detected
+ */
 export const useScanner = (params: UseScannerParams) => {
   const [logs, setLog] = useState<UseScannerLog[]>([]);
-  const shouldDebugRef = useRef<boolean>(!!params.debug?.canvasRef?.current);
   const shouldLogRef = useRef<boolean>(params.debug?.enableLogging ?? false);
 
-  useEffect(() => {
-    shouldLogRef.current = params.debug?.enableLogging ?? false;
-    shouldDebugRef.current = !!params.debug?.canvasRef?.current;
-  }, [params.debug?.canvasRef, params.debug?.enableLogging]);
+  const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  const canvasDebugRef = useRef<HTMLCanvasElement | null>(
+    params.debug?.canvasRef?.current ?? null
+  );
 
-  // Utility to log message if a mechanism is available
+  /**
+   * This is a memoized utility to log messages or add message
+   * entries to the log state declared at the top of the hook.
+   * Since this can be called in event handlers, we need to use
+   * mutable references to prevent their execution if a one of the
+   * `debug.enableLogging` is changed to true.
+   */
   const logMessage = useCallback<(params: Omit<UseScannerLog, "ts">) => void>(
     (message) => {
       if (!shouldLogRef.current) return;
@@ -49,8 +59,36 @@ export const useScanner = (params: UseScannerParams) => {
     []
   );
 
-  // when the video node becomes available,
-  // run this callback function
+  /**
+   * When any of the debugging parameters change, we update
+   * some of the refs to either enable or prevent code execution
+   * in the video listeners
+   */
+  useEffect(() => {
+    // enable or disable logging
+    shouldLogRef.current = params.debug?.enableLogging ?? false;
+    logMessage({
+      level: "INFO",
+      message: `Logging ${shouldLogRef.current ? "enabled" : "disabled"}`,
+    });
+
+    // enable or disable canvas debugging
+    canvasDebugRef.current = params.debug?.canvasRef?.current ?? null;
+    logMessage({
+      level: "INFO",
+      message: `Canvas Debugging ${
+        canvasDebugRef.current ? "enabled" : "disabled"
+      }`,
+    });
+  }, [logMessage, params.debug?.canvasRef, params.debug?.enableLogging]);
+
+  /**
+   * SECRET SAUCE
+   * This is a singular callback that will initialize the video
+   * once the node becomes available in the DOM. These concepts
+   * are covered by 'CallbackRefs'; A React convention to supply
+   * to the `ref` prop of any HTML node.
+   */
   const setVideoRef = useCallback<
     (instance: HTMLVideoElement | null) => Promise<void>
   >(
@@ -62,6 +100,7 @@ export const useScanner = (params: UseScannerParams) => {
       videoNode.autoplay = true;
 
       // 2. Get the video stream and set it to the video element
+      //
       if (!("srcObject" in videoNode)) {
         return alert(
           "Your browser does not support the scanner. Please download the latest version of Chrome, Firefox, or Safari."
@@ -84,6 +123,9 @@ export const useScanner = (params: UseScannerParams) => {
 
       // 3. Initialize some objects after the video has loaded with the webcam
       videoNode.addEventListener("loadedmetadata", () => {
+        canvasRef.current.width = videoNode.videoWidth;
+        canvasRef.current.height = videoNode.videoHeight;
+        logMessage({ level: "INFO", message: "Set canvas dimensions" });
         // 3.1 Set the debug canvas element to the _real_ height of the video
         // this only becomes available when the metadata has loaded
         if (params.debug?.canvasRef?.current) {
@@ -97,55 +139,42 @@ export const useScanner = (params: UseScannerParams) => {
 
       // 4. Create an offscreen canvas element to store the video data
       // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
-      if (typeof OffscreenCanvas === "undefined") {
-        return alert(
-          "Your browser does not support the scanner. Please download the latest version of Chrome, Firefox, or Safari."
-        );
-      }
-      const offscreenCanvas = new OffscreenCanvas(
-        videoNode.videoWidth,
-        videoNode.videoHeight
-      );
-      const offscreenCanvasContext = offscreenCanvas.getContext("2d", {
+      const canvasContext = canvasRef.current.getContext("2d", {
         alpha: false,
         willReadFrequently: true,
       });
 
-      // 5. Grab the debug context as well if it exists
-      let debugContext: CanvasRenderingContext2D | null;
-      if (params.debug?.canvasRef?.current) {
-        debugContext = params.debug.canvasRef.current.getContext("2d", {
-          alpha: false,
-          willReadFrequently: true,
-        });
+      if (!canvasContext) {
+        return logMessage({ level: "ERROR", message: "CanvasContext is null" });
       }
+
+      const canvasDebugContext = canvasDebugRef.current
+        ? canvasDebugRef.current.getContext("2d", {
+            alpha: false,
+            willReadFrequently: true,
+          })
+        : null;
 
       // 6. Listen to the timeupdate event on the video
       // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
       videoNode.addEventListener("timeupdate", () => {
-        logMessage({ level: "TRACE", message: "Video updated" });
+        logMessage({ level: "TRACE", message: "Video tick" });
 
-        if (!offscreenCanvasContext) {
-          return console.warn(
-            "'OffscreenCanvasRenderingContext2D' not available. This is most likely an error in how your browser implements the OffscreenCanvas API."
-          );
+        if (canvasDebugContext) {
+          canvasDebugContext.drawImage(videoNode, 0, 0);
         }
 
-        offscreenCanvasContext.drawImage(videoNode, 0, 0);
-        if (debugContext && shouldDebugRef.current) {
-          debugContext.drawImage(videoNode, 0, 0);
-        }
-
-        // START HERE TOMORROW
-        // Why is that only working for a Canvas node?
-        const imageData = debugContext.getImageData(
+        // 7. Draw the video image onto the in memory canvas and convert it
+        // get it's image data
+        canvasContext.drawImage(videoNode, 0, 0);
+        const canvasImageData = canvasContext.getImageData(
           0,
           0,
           videoNode.videoWidth,
           videoNode.videoHeight
         );
-        // console.log(imageData);
-        const result = decodeBarcode(imageData);
+        const result = decodeBarcode(canvasImageData);
+        if (!result) return;
         logMessage({ level: "DEBUG", message: result });
       });
     },

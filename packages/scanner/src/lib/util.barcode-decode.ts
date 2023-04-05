@@ -15,7 +15,7 @@ import {
 } from "@zxing/library";
 
 const hints = new Map();
-const formats = [BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX];
+const formats = [BarcodeFormat.QR_CODE, BarcodeFormat.CODE_128];
 
 hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
 hints.set(DecodeHintType.TRY_HARDER, true);
