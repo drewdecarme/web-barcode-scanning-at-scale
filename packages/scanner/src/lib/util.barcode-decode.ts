@@ -25,12 +25,15 @@ const reader = new MultiFormatReader();
 reader.setHints(hints);
 
 /**
- * A simple utility that takes in an offscreen canvas
+ * A utility that reads an ImageData instance
+ * and uses the @zxing/library utility to decode
+ * the image data to read the barcode contained
+ * in the data
  */
 export const decodeBarcode = (imageData: ImageData) => {
   try {
+    // https://github.com/zxing-js/library/issues/148#issuecomment-530649651
     const len = imageData.width * imageData.height;
-
     const luminancesUint8Array = new Uint8ClampedArray(len);
 
     for (let i = 0; i < len; i++) {

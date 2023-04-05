@@ -173,6 +173,7 @@ export const useScanner = (params: UseScannerParams) => {
           videoNode.videoWidth,
           videoNode.videoHeight
         );
+        // 8. Decode the imagedata
         const result = decodeBarcode(canvasImageData);
         if (!result) return;
         logMessage({ level: "DEBUG", message: result });
