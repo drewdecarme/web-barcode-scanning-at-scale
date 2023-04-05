@@ -24,5 +24,10 @@
     "url": "https://github.com/drewdecarme/your-browser-is-pooped/issues"
   },
   "homepage": "https://github.com/drewdecarme/your-browser-is-pooped#readme",
-  "packageManager": "yarn@3.5.0"
+  "packageManager": "yarn@3.5.0",
+  "devDependencies": {
+    "eslint": "^8.37.0",
+    "prettier": "^2.8.7",
+    "typescript": "^5.0.3"
+  }
 }
