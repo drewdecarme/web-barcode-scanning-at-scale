@@ -1,0 +1,19 @@
+{
+    "eslint.packageManager": "yarn",
+    "eslint.workingDirectories": [
+        {
+            "directory": "./packages/app",
+            "!cwd": false
+        },
+        {
+            "directory": "./packages/scanner",
+            "!cwd": false
+        },
+    ],
+    "typescript.tsdk": "./node_modules/typescript/lib",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": true
+    },
+    "githubPullRequests.ignoredPullRequestBranches": ["develop"],
+    "editor.formatOnSave": true
+}
