@@ -35,25 +35,26 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
 
       // 3. Set some attributes of our elements once the video has initialized
       videoNode.addEventListener("loadedmetadata", () => {
-        // Set scanner attributes
+        // Set scanner canvas attributes
         logMessage({ level: "INFO", message: "Setting canvas attributes..." });
         canvasRef.current.width = videoNode.videoWidth;
         canvasRef.current.height = videoNode.videoHeight;
         logMessage({ level: "INFO", message: "Setting canvas attributes... done." });
 
-        // Set mask attributes
-        logMessage({ level: "INFO", message: "Setting mask attributes..." });
-        maskRef.current.style.height = inPixels(videoNode.clientHeight);
-        maskRef.current.style.width = inPixels(videoNode.clientWidth);
-        maskRef.current.style.position = "absolute";
-        maskRef.current.style.top = inPixels(videoNode.offsetTop);
-        maskRef.current.style.left = inPixels(videoNode.offsetLeft);
-        maskRef.current.classList.add(mask?.className ?? "scanner");
-        videoNode.parentElement?.appendChild(maskRef.current);
-        logMessage({ level: "INFO", message: "Setting mask attributes... done." });
+        // Set mask attributes if masking has been enabled
+        if (mask?.className) {
+          logMessage({ level: "INFO", message: "Setting mask attributes..." });
+          maskRef.current.style.height = inPixels(videoNode.clientHeight);
+          maskRef.current.style.width = inPixels(videoNode.clientWidth);
+          maskRef.current.style.position = "absolute";
+          maskRef.current.style.top = inPixels(videoNode.offsetTop);
+          maskRef.current.style.left = inPixels(videoNode.offsetLeft);
+          maskRef.current.classList.add(mask?.className ?? "scanner");
+          videoNode.parentElement?.appendChild(maskRef.current);
+          logMessage({ level: "INFO", message: "Setting mask attributes... done." });
+        }
 
-        // 3.1 Set the debug canvas element to the _real_ height of the video
-        // this only becomes available when the metadata has loaded
+        // Set debug canvas attributes if debugCanvas has been enabled
         if (canvasDebugRef.current) {
           logMessage({ level: "DEBUG", message: "Set canvasDebug attributes" });
           canvasDebugRef.current.width = videoNode.videoWidth;
