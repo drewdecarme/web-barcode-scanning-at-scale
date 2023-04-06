@@ -15,13 +15,16 @@ function App() {
   });
   const [result, setResult] = useState<string>("");
 
-  const { setVideoRef, logs } = useScanner({
+  const { initScanner, logs } = useScanner({
     debug: {
       canvasRef: display?.canvas ? debugCanvasRef : undefined,
       enableLogging: display?.logs,
     },
     video: {
       maxWidth: 300,
+    },
+    mask: {
+      className: "scanner",
     },
     onScan: setResult,
   });
@@ -30,7 +33,7 @@ function App() {
     <div className="app">
       <GridUtils setDisplay={setDisplay} />
       <GridVideo>
-        <video ref={setVideoRef} />
+        <video ref={initScanner} />
       </GridVideo>
       <GridCanvas>
         <canvas ref={debugCanvasRef}></canvas>

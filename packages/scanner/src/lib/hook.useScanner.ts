@@ -1,114 +1,64 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { decodeBarcode } from "./util.read-barcode";
-import { drawBoundary } from "./util.draw-boundary";
+import { useCallback, useRef } from "react";
 import { setVideoStream } from "./util.setVideoStream";
-import { UseScannerParams, UseScannerLog } from "./lib.types";
+import { UseScannerParams } from "./lib.types";
+import { useScannerDebug } from "./hook.useDebugScanner";
+import { inPixels } from "./util.in-pixels";
+import { decodeBarcode } from "./util.decode-barcode";
 
 /**
  * Returns a callback reference to supply to a `video`
  * node that will turn the video on and attempt to
  * read the output if a QR or 1D scannable area is detected
  */
-export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
-  const [logs, setLog] = useState<UseScannerLog[]>([]);
+export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => {
+  const { logs, logMessage, canvasDebugRef } = useScannerDebug(debug);
 
-  const shouldLogRef = useRef<boolean>(debug?.enableLogging ?? false);
+  const maskRef = useRef<HTMLDivElement>(document.createElement("div"));
   const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
-  const canvasBoundaryRef = useRef<HTMLCanvasElement>(
-    document.createElement("canvas")
-  );
-  const canvasDebugRef = useRef<HTMLCanvasElement | null>(
-    debug?.canvasRef?.current ?? null
-  );
 
   /**
-   * This is a memoized utility to log messages or add message
-   * entries to the log state declared at the top of the hook.
-   * Since this can be called in event handlers, we need to use
-   * mutable references to prevent their execution if a one of the
-   * `debug.enableLogging` is changed to true.
-   */
-  const logMessage = useCallback<(params: Omit<UseScannerLog, "ts">) => void>(
-    (message) => {
-      if (!shouldLogRef.current) return;
-      setLog((prevLogs) => [
-        ...prevLogs,
-        {
-          ...message,
-          ts: new Date().toISOString(),
-        },
-      ]);
-    },
-    []
-  );
-
-  /**
-   * When any of the debugging parameters change, we update
-   * some of the refs to either enable or prevent code execution
-   * in the video listeners
-   */
-  useEffect(() => {
-    // enable or disable logging
-    shouldLogRef.current = debug?.enableLogging ?? false;
-    logMessage({
-      level: "INFO",
-      message: `Logging ${shouldLogRef.current ? "enabled" : "disabled"}`,
-    });
-
-    // enable or disable canvas debugging
-    canvasDebugRef.current = debug?.canvasRef?.current ?? null;
-    logMessage({
-      level: "INFO",
-      message: `Canvas Debugging ${
-        canvasDebugRef.current ? "enabled" : "disabled"
-      }`,
-    });
-  }, [logMessage, debug?.canvasRef, debug?.enableLogging]);
-
-  /**
-   * SECRET SAUCE
    * This is a singular callback that will initialize the video
-   * once the node becomes available in the DOM. These concepts
-   * are covered by 'CallbackRefs'; A React convention to supply
-   * to the `ref` prop of any HTML node.
+   * once the node becomes available in the DOM.
+   *
+   * https://react.dev/reference/react-dom/components/common#ref-callback
    */
-  const setVideoRef = useCallback<
-    (instance: HTMLVideoElement | null) => Promise<void>
-  >(
+  const initScanner = useCallback<(instance: HTMLVideoElement | null) => Promise<void>>(
     async (videoNode) => {
       if (!videoNode) return;
 
       // 1. Set some of the configuration properties
-      videoNode.style.maxWidth = `${video.maxWidth}px`;
+      videoNode.style.maxWidth = inPixels(video.maxWidth);
       videoNode.autoplay = true;
 
       // 2. Get the video stream and set it to the video element
       await setVideoStream(videoNode);
 
-      // 3. Initialize some objects after the video has loaded with the webcam
+      // 3. Set some attributes of our elements once the video has initialized
       videoNode.addEventListener("loadedmetadata", () => {
+        // Set scanner attributes
+        logMessage({ level: "INFO", message: "Setting canvas attributes..." });
         canvasRef.current.width = videoNode.videoWidth;
         canvasRef.current.height = videoNode.videoHeight;
-        logMessage({ level: "INFO", message: "Set canvas dimensions" });
+        logMessage({ level: "INFO", message: "Setting canvas attributes... done." });
 
-        canvasBoundaryRef.current.width = videoNode.clientWidth;
-        canvasBoundaryRef.current.height = videoNode.clientHeight;
-        canvasBoundaryRef.current.style.position = "absolute";
-        canvasBoundaryRef.current.style.top = `${videoNode.offsetTop}px`;
-        canvasBoundaryRef.current.style.left = `${videoNode.offsetLeft}px`;
-        videoNode.parentElement?.appendChild(canvasBoundaryRef.current);
-        logMessage({
-          level: "INFO",
-          message: "Set boundary dimensions & position",
-        });
+        // Set mask attributes
+        logMessage({ level: "INFO", message: "Setting mask attributes..." });
+        maskRef.current.style.height = inPixels(videoNode.clientHeight);
+        maskRef.current.style.width = inPixels(videoNode.clientWidth);
+        maskRef.current.style.position = "absolute";
+        maskRef.current.style.top = inPixels(videoNode.offsetTop);
+        maskRef.current.style.left = inPixels(videoNode.offsetLeft);
+        maskRef.current.classList.add(mask?.className ?? "scanner");
+        videoNode.parentElement?.appendChild(maskRef.current);
+        logMessage({ level: "INFO", message: "Setting mask attributes... done." });
 
         // 3.1 Set the debug canvas element to the _real_ height of the video
         // this only becomes available when the metadata has loaded
-        if (debug?.canvasRef?.current) {
-          logMessage({ level: "DEBUG", message: "Set canvasDebug dimensions" });
-          debug.canvasRef.current.width = videoNode.videoWidth;
-          debug.canvasRef.current.height = videoNode.videoHeight;
-          debug.canvasRef.current.style.maxWidth = `${video.maxWidth}px`;
+        if (canvasDebugRef.current) {
+          logMessage({ level: "DEBUG", message: "Set canvasDebug attributes" });
+          canvasDebugRef.current.width = videoNode.videoWidth;
+          canvasDebugRef.current.height = videoNode.videoHeight;
+          canvasDebugRef.current.style.maxWidth = inPixels(video.maxWidth);
         }
       });
 
@@ -151,19 +101,14 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
         const barcode = decodeBarcode(canvasImageData);
         if (!barcode) return;
 
-        // 9. Draw the boundary
-        drawBoundary({
-          points: barcode.getResultPoints(),
-          canvas: canvasBoundaryRef.current,
-        });
         // 8. Get the value
         const text = barcode.getText();
         onScan(text);
         logMessage({ level: "DEBUG", message: text });
       });
     },
-    [logMessage, debug?.canvasRef, video.maxWidth, onScan]
+    [video.maxWidth, canvasDebugRef, logMessage, mask?.className, onScan]
   );
 
-  return { setVideoRef, logs };
+  return { initScanner, logs };
 };

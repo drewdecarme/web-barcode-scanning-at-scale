@@ -56,9 +56,7 @@ export const decodeBarcode = (imageData: ImageData) => {
       imageData.height
     );
 
-    const result = reader.decode(
-      new BinaryBitmap(new HybridBinarizer(luminanceSource))
-    );
+    const result = reader.decode(new BinaryBitmap(new HybridBinarizer(luminanceSource)));
 
     return result;
   } catch (error) {

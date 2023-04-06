@@ -15,5 +15,8 @@ export type UseScannerParams = {
   video: {
     maxWidth: number;
   };
+  mask?: {
+    className?: string;
+  };
   onScan: (result: string) => void;
 };
