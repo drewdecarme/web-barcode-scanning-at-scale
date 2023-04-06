@@ -1,29 +1,8 @@
-import {
-  MutableRefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { decodeBarcode } from "./util.barcode-decode";
-
-export type UseScannerLog = {
-  ts: string;
-  message: string;
-  level: "ERROR" | "WARN" | "INFO" | "DEBUG" | "TRACE";
-};
-export type UseScannerLogger = (message: UseScannerLog) => void;
-
-export type UseScannerParams = {
-  debug?: {
-    canvasRef?: MutableRefObject<HTMLCanvasElement | null>;
-    enableLogging?: boolean;
-  };
-  video: {
-    maxWidth: number;
-  };
-  onScan: (result: string) => void;
-};
+import { useCallback, useEffect, useRef, useState } from "react";
+import { decodeBarcode } from "./util.read-barcode";
+import { drawBoundary } from "./util.draw-boundary";
+import { setVideoStream } from "./util.setVideoStream";
+import { UseScannerParams, UseScannerLog } from "./lib.types";
 
 /**
  * Returns a callback reference to supply to a `video`
@@ -32,9 +11,12 @@ export type UseScannerParams = {
  */
 export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
   const [logs, setLog] = useState<UseScannerLog[]>([]);
-  const shouldLogRef = useRef<boolean>(debug?.enableLogging ?? false);
 
+  const shouldLogRef = useRef<boolean>(debug?.enableLogging ?? false);
   const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  const canvasBoundaryRef = useRef<HTMLCanvasElement>(
+    document.createElement("canvas")
+  );
   const canvasDebugRef = useRef<HTMLCanvasElement | null>(
     debug?.canvasRef?.current ?? null
   );
@@ -101,40 +83,32 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
       videoNode.autoplay = true;
 
       // 2. Get the video stream and set it to the video element
-      //
-      if (!("srcObject" in videoNode)) {
-        return alert(
-          "Your browser does not support the scanner. Please download the latest version of Chrome, Firefox, or Safari."
-        );
-      }
-      const videoStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          aspectRatio: window.devicePixelRatio || 1,
-          frameRate: 30,
-          width: {
-            ideal: 4096,
-          },
-          height: {
-            ideal: 2160,
-          },
-        },
-      });
-      videoNode.srcObject = videoStream;
+      await setVideoStream(videoNode);
 
       // 3. Initialize some objects after the video has loaded with the webcam
       videoNode.addEventListener("loadedmetadata", () => {
         canvasRef.current.width = videoNode.videoWidth;
         canvasRef.current.height = videoNode.videoHeight;
         logMessage({ level: "INFO", message: "Set canvas dimensions" });
+
+        canvasBoundaryRef.current.width = videoNode.clientWidth;
+        canvasBoundaryRef.current.height = videoNode.clientHeight;
+        canvasBoundaryRef.current.style.position = "absolute";
+        canvasBoundaryRef.current.style.top = `${videoNode.offsetTop}px`;
+        canvasBoundaryRef.current.style.left = `${videoNode.offsetLeft}px`;
+        videoNode.parentElement?.appendChild(canvasBoundaryRef.current);
+        logMessage({
+          level: "INFO",
+          message: "Set boundary dimensions & position",
+        });
+
         // 3.1 Set the debug canvas element to the _real_ height of the video
         // this only becomes available when the metadata has loaded
         if (debug?.canvasRef?.current) {
+          logMessage({ level: "DEBUG", message: "Set canvasDebug dimensions" });
           debug.canvasRef.current.width = videoNode.videoWidth;
           debug.canvasRef.current.height = videoNode.videoHeight;
-          debug.canvasRef.current.style.maxWidth = video.maxWidth
-            .toString()
-            .concat("px");
+          debug.canvasRef.current.style.maxWidth = `${video.maxWidth}px`;
         }
       });
 
@@ -165,8 +139,7 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
           canvasDebugContext.drawImage(videoNode, 0, 0);
         }
 
-        // 7. Draw the video image onto the in memory canvas and convert it
-        // get it's image data
+        // 7. Draw the video image onto the in memory canvas and convert it get it's image data
         canvasContext.drawImage(videoNode, 0, 0);
         const canvasImageData = canvasContext.getImageData(
           0,
@@ -174,13 +147,19 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
           videoNode.videoWidth,
           videoNode.videoHeight
         );
-        // 8. Decode the imagedata
-        // const barcode = detectBarcode(canvasImageData);
-        const result = decodeBarcode(canvasImageData);
-        if (!result) return;
-        const textResult = result.getText();
-        onScan(textResult);
-        logMessage({ level: "DEBUG", message: textResult });
+        // 8. Detect a barcode
+        const barcode = decodeBarcode(canvasImageData);
+        if (!barcode) return;
+
+        // 9. Draw the boundary
+        drawBoundary({
+          points: barcode.getResultPoints(),
+          canvas: canvasBoundaryRef.current,
+        });
+        // 8. Get the value
+        const text = barcode.getText();
+        onScan(text);
+        logMessage({ level: "DEBUG", message: text });
       });
     },
     [logMessage, debug?.canvasRef, video.maxWidth, onScan]
