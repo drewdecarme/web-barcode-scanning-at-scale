@@ -1,11 +1,14 @@
 import "./App.scss";
 import { useScanner } from "../src/lib";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { GridLogs } from "./GridLog";
 import { GridCanvas } from "./GridCanvas";
 import { GridVideo } from "./GridVideo";
 import { GridUtils } from "./GridUtils";
 import { GridScan } from "./GridScan";
+import { motion } from "framer-motion";
+
+import "./scanner.css";
 
 function App() {
   const debugCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -33,7 +36,31 @@ function App() {
     <div className="app">
       <GridUtils setDisplay={setDisplay} />
       <GridVideo>
-        <video ref={initScanner} />
+        <div
+          style={{
+            position: "relative",
+          }}
+        >
+          {useMemo(
+            () => (
+              <motion.div
+                className="scanner-animation"
+                animate={{
+                  scale: [0.8, 0.7, 0.8],
+                  borderWidth: [6, 2, 6],
+                  borderColor: ["#ffffff0", "#fff", "#ffffff0"],
+                }}
+                transition={{
+                  duration: 2,
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                }}
+              />
+            ),
+            []
+          )}
+          <video ref={initScanner} />
+        </div>
       </GridVideo>
       <GridCanvas>
         <canvas ref={debugCanvasRef} />
