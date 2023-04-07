@@ -36,7 +36,7 @@ function App() {
         <video ref={initScanner} />
       </GridVideo>
       <GridCanvas>
-        <canvas ref={debugCanvasRef}></canvas>
+        <canvas ref={debugCanvasRef} />
       </GridCanvas>
       <GridScan>{result}</GridScan>
       <GridLogs logs={logs} />
