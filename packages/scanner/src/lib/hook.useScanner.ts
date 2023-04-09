@@ -4,6 +4,7 @@ import { UseScannerParams } from "./lib.types";
 import { useScannerDebug } from "./hook.useDebugScanner";
 import { inPixels } from "./util.in-pixels";
 import { decodeBarcode } from "./util.decode-barcode";
+import { locateBarcode } from "./util.locate-barcode";
 
 /**
  * Returns a callback reference to supply to a `video`
@@ -13,8 +14,8 @@ import { decodeBarcode } from "./util.decode-barcode";
 export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => {
   const { logs, logMessage, canvasDebugRef } = useScannerDebug(debug);
 
-  const maskRef = useRef<HTMLDivElement>(document.createElement("div"));
-  const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  const canvasMaskRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  const canvasScannerRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
 
   /**
    * This is a singular callback that will initialize the video
@@ -37,20 +38,20 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
       videoNode.addEventListener("loadedmetadata", () => {
         // Set scanner canvas attributes
         logMessage({ level: "INFO", message: "Setting canvas attributes..." });
-        canvasRef.current.width = videoNode.videoWidth;
-        canvasRef.current.height = videoNode.videoHeight;
+        canvasScannerRef.current.width = videoNode.videoWidth;
+        canvasScannerRef.current.height = videoNode.videoHeight;
         logMessage({ level: "INFO", message: "Setting canvas attributes... done." });
 
         // Set mask attributes if masking has been enabled
         if (mask?.className) {
           logMessage({ level: "INFO", message: "Setting mask attributes..." });
-          maskRef.current.style.height = inPixels(videoNode.clientHeight);
-          maskRef.current.style.width = inPixels(videoNode.clientWidth);
-          maskRef.current.style.position = "absolute";
-          maskRef.current.style.top = inPixels(videoNode.offsetTop);
-          maskRef.current.style.left = inPixels(videoNode.offsetLeft);
-          maskRef.current.classList.add(mask?.className ?? "scanner");
-          videoNode.parentElement?.appendChild(maskRef.current);
+          canvasMaskRef.current.style.height = inPixels(videoNode.clientHeight);
+          canvasMaskRef.current.style.width = inPixels(videoNode.clientWidth);
+          canvasMaskRef.current.style.position = "absolute";
+          canvasMaskRef.current.style.top = inPixels(videoNode.offsetTop);
+          canvasMaskRef.current.style.left = inPixels(videoNode.offsetLeft);
+          canvasMaskRef.current.classList.add(mask?.className ?? "scanner");
+          videoNode.parentElement?.appendChild(canvasMaskRef.current);
           logMessage({ level: "INFO", message: "Setting mask attributes... done." });
         }
 
@@ -65,7 +66,7 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
 
       // 4. Get the context of both canvas elements
       // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
-      const canvasContext = canvasRef.current.getContext("2d", {
+      const canvasContext = canvasScannerRef.current.getContext("2d", {
         alpha: false,
         willReadFrequently: true,
       });
@@ -92,15 +93,28 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
 
         // 7. Draw the video image onto the in memory canvas and convert it get it's image data
         canvasContext.drawImage(videoNode, 0, 0);
-        const canvasImageData = canvasContext.getImageData(
+        const canvasScannerImageData = canvasContext.getImageData(
           0,
           0,
           videoNode.videoWidth,
           videoNode.videoHeight
         );
+
         // 8. Detect a barcode
-        const barcode = decodeBarcode(canvasImageData);
+        const barcode = decodeBarcode(canvasScannerImageData);
         if (!barcode) return;
+
+        if (!canvasMaskRef.current) {
+          return console.error("No masking element determined");
+        }
+
+        const boundingBox = locateBarcode({
+          maskCanvas: canvasMaskRef.current,
+          scannerImageData: canvasScannerImageData,
+          resultData: barcode,
+        });
+
+        console.log(boundingBox);
 
         // 8. Get the value
         const text = barcode.getText();
