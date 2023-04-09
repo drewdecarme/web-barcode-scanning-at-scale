@@ -1,16 +1,15 @@
-import { decodeBarcode } from "./util.decode-barcode";
-import { drawBarcodeBoundary } from "./util.locate-barcode";
-import { processImage } from "./util.process-image";
+import { decodeBarcode } from "./lib.barcode-decode";
+import { drawBarcodeBoundary } from "./lib.barcode-locate";
 
-export type HandleScanParams = {
+export type BarcodeScanParams = {
   canvasMaskNode: HTMLCanvasElement;
   canvasScanImageData: ImageData;
 };
 
-export const handleScan = ({
+export const scanBarcode = ({
   canvasMaskNode,
   canvasScanImageData,
-}: HandleScanParams): undefined | string => {
+}: BarcodeScanParams): undefined | string => {
   const scanResult = decodeBarcode(canvasScanImageData);
 
   drawBarcodeBoundary({
@@ -22,8 +21,6 @@ export const handleScan = ({
   if (!scanResult) {
     return undefined;
   }
-
-  processImage(canvasScanImageData);
 
   return scanResult.getText();
 };

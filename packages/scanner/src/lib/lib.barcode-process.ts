@@ -4,6 +4,8 @@ const gaussianDivisor = 16;
 const gaussianOffset = 0;
 
 /**
+ * Applies a blur filter to an image using convolution
+ *
  * Convolution is performed by looping over each pixel in the
  * image and calculating a weighted sum
  * of the pixel values in a neighborhood around the pixel as defined
@@ -11,7 +13,8 @@ const gaussianOffset = 0;
  * to scale and shift the result
  * of the convolution respectively
  */
-export function processImage(imageData: ImageData): ImageData {
+export type BarcodeProcessParams = ImageData;
+export function processBarcode(imageData: BarcodeProcessParams): ImageData {
   const pixels = imageData.data;
   const width = imageData.width;
   const height = imageData.height;

@@ -3,9 +3,15 @@ import { setVideoStream } from "./util.setVideoStream";
 import { UseScannerParams } from "./lib.types";
 import { useScannerDebug } from "./hook.useDebugScanner";
 import { inPixels } from "./util.in-pixels";
-import { decodeBarcode } from "./util.decode-barcode";
-import { handleScan } from "./util.handle-scan";
-// import { locateBarcode } from "./util.locate-barcode";
+import { scanBarcode } from "./lib.barcode-scan";
+import { processBarcode } from "./lib.barcode-process";
+
+const scannerWorker = new Worker(
+  new URL("./lib/worker.barcode-scan.ts", import.meta.url)
+);
+const processWorker = new Worker(
+  new URL("./lib/worker.barcode-process.ts", import.meta.url)
+);
 
 /**
  * Returns a callback reference to supply to a `video`
@@ -89,8 +95,7 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
         throw new Error("Cannot get the necessary context to decode the scan.");
       }
 
-      // 6. Listen to the timeupdate event on the video
-      // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
+      // When the next tick of the video occurs
       videoNode.addEventListener("timeupdate", () => {
         logMessage({ level: "TRACE", message: "Video tick" });
 
@@ -106,12 +111,14 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
           canvasScanNode.height
         );
 
-        const result = handleScan({
+        const result = scanBarcode({
           canvasMaskNode,
           canvasScanImageData,
         });
 
         if (!result) return;
+
+        processBarcode(canvasScanImageData);
 
         onScan(result);
         logMessage({ level: "DEBUG", message: result });

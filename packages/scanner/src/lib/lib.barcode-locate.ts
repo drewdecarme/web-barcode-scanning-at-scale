@@ -1,11 +1,11 @@
 import { Result } from "@zxing/library";
-import { HandleScanParams } from "./util.handle-scan";
+import { BarcodeScanParams } from "./lib.barcode-scan";
 
 export const drawBarcodeBoundary = ({
   canvasMaskNode,
   canvasScanImageData,
   scanResult,
-}: Pick<HandleScanParams, "canvasMaskNode" | "canvasScanImageData"> & {
+}: Pick<BarcodeScanParams, "canvasMaskNode" | "canvasScanImageData"> & {
   scanResult: Result | null;
 }) => {
   // Get the canvasMask element and its dimensions
