@@ -1,27 +1,34 @@
 import { Result } from "@zxing/library";
+import { HandleScanParams } from "./util.handle-scan";
 
-export const locateBarcode = ({
-  maskCanvas,
-  scannerImageData,
-  resultData,
-}: {
-  maskCanvas: HTMLCanvasElement;
-  resultData: Result;
-  scannerImageData: ImageData;
+export const drawBarcodeBoundary = ({
+  canvasMaskNode,
+  canvasScanImageData,
+  scanResult,
+}: Pick<HandleScanParams, "canvasMaskNode" | "canvasScanImageData"> & {
+  scanResult: Result | null;
 }) => {
-  // Get the canvas element and its dimensions
-  const canvasMaskWidth = maskCanvas.width;
-  const canvasMaskHeight = maskCanvas.height;
+  // Get the canvasMask element and its dimensions
+  const canvasMaskWidth = canvasMaskNode.width;
+  const canvasMaskHeight = canvasMaskNode.height;
 
-  // Get the video element and its dimensions
-  const scannedImageWidth = scannerImageData.width;
-  const scannedImageHeight = scannerImageData.height;
+  // Get the scanned element and its dimensions
+  const scannedImageWidth = canvasScanImageData.width;
+  const scannedImageHeight = canvasScanImageData.height;
 
   // Calculate the scaling factor between the video and canvas
   const scaleX = canvasMaskWidth / scannedImageWidth;
   const scaleY = canvasMaskHeight / scannedImageHeight;
 
-  const resultPoints = resultData.getResultPoints();
+  // Get the canvas context
+  const ctx = canvasMaskNode.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvasMaskWidth, canvasMaskHeight);
+
+  // Do nothing if there is no scan result
+  if (!scanResult) return;
+
+  const resultPoints = scanResult.getResultPoints();
 
   // Scale the ResultPoints coordinates to canvas space
   const scaledPoints = resultPoints.map((point) => {
@@ -32,8 +39,6 @@ export const locateBarcode = ({
   });
 
   // Draw the bounding box on the canvas
-  const ctx = maskCanvas.getContext("2d");
-  if (!ctx) return;
   ctx.clearRect(0, 0, canvasMaskWidth, canvasMaskHeight);
   ctx.strokeStyle = "red";
   ctx.beginPath();
