@@ -1,5 +1,5 @@
 import { decodeBarcode } from "./lib.barcode-decode";
-import { drawBarcodeBoundary } from "./lib.barcode-locate";
+import { drawBarcodeBoundary } from "./lib.barcode-boundary";
 
 export type BarcodeScanParams = {
   canvasMaskNode: OffscreenCanvas;

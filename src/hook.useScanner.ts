@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { setVideoStream } from "./util.setVideoStream";
-import { UseScannerParams } from "./lib.types";
 import { inPixels } from "./util.in-pixels";
 import { useScannerDebugger } from "./hook.useScannerDebugger";
+import { UseScannerParams } from "./hook.useScanner.types";
+
+export * from "./hook.useScanner.types";
 
 const barcodeScannerWorker = new Worker(
   new URL("./worker.barcode-scan.ts", import.meta.url),

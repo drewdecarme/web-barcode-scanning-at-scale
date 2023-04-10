@@ -1,7 +1,6 @@
 import { FC, memo } from "react";
 import { ScannerAnimation } from "./ScannerAnimation";
-import { useScanner } from "../src/lib";
-import { UseScannerLogger } from "../src/lib/lib.types";
+import { useScanner, type UseScannerLogger } from "../src";
 
 export const Scanner: FC<{ onScan: (e: string) => void; logger?: UseScannerLogger }> =
   memo(function Scanner({ onScan, logger }) {
