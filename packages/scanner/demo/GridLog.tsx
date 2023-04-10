@@ -1,17 +1,17 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { forwardRef, useEffect, useRef } from "react";
-import { UseScannerLog } from "../src/lib";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useState } from "react";
+import { useGridContext } from "./Grid.context";
 
-export type GridLogProps = JSX.IntrinsicElements["article"] & {
-  logs: UseScannerLog[];
-};
+export type GridLogProps = JSX.IntrinsicElements["article"];
 
 export const GridLogs = forwardRef<HTMLElement, GridLogProps>(function GridLogs(
-  { style, logs, ...restProps },
+  { style, ...restProps },
   ref
 ) {
   const [shouldTail, setShouldTail] = useState(true);
+  const { logs } = useGridContext();
 
   const rowVirtualizer = useVirtualizer({
     count: logs.length,
@@ -70,8 +70,9 @@ export const GridLogs = forwardRef<HTMLElement, GridLogProps>(function GridLogs(
                 }}
               >
                 <pre>
-                  {logs[virtualItem.index].ts} - {logs[virtualItem.index].level}{" "}
-                  - {logs[virtualItem.index].message}
+                  {/* @ts-ignore */}
+                  {logs[virtualItem.index]?.ts} - {logs[virtualItem.index].level} -{" "}
+                  {logs[virtualItem.index].message}
                 </pre>
               </li>
             ))}

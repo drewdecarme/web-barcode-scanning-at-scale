@@ -2,7 +2,7 @@ import { decodeBarcode } from "./lib.barcode-decode";
 import { drawBarcodeBoundary } from "./lib.barcode-locate";
 
 export type BarcodeScanParams = {
-  canvasMaskNode: HTMLCanvasElement;
+  canvasMaskNode: OffscreenCanvas;
   canvasScanImageData: ImageData;
 };
 
