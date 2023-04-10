@@ -13,9 +13,6 @@ export const Scanner: FC<{ onScan: (e: string) => void; logger?: UseScannerLogge
       video: {
         maxWidth: 300,
       },
-      mask: {
-        className: "scanner",
-      },
       onScan,
     });
 

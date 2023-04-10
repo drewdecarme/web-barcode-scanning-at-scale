@@ -22,7 +22,7 @@ const barcodeProcessWorker = new Worker(
  * node that will turn the video on and attempt to
  * read the output if a QR or 1D scannable area is detected
  */
-export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => {
+export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
   const { getCanvasDebugNode, log } = useScannerDebugger(debug);
   const canvasScanRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
   const canvasMaskRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
@@ -72,18 +72,16 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
         canvasScanNode.height = videoNode.videoHeight;
         log({ level: "INFO", message: "Setting canvas attributes... done." });
 
-        // Set the masking attributes and add it to the DOM if indicated
-        if (mask?.className) {
-          log({ level: "INFO", message: "Setting mask attributes..." });
-          canvasMaskNode.style.height = inPixels(videoNode.clientHeight);
-          canvasMaskNode.style.width = inPixels(videoNode.clientWidth);
-          canvasMaskNode.style.position = "absolute";
-          canvasMaskNode.style.top = inPixels(videoNode.offsetTop);
-          canvasMaskNode.style.left = inPixels(videoNode.offsetLeft);
-          canvasMaskNode.classList.add(mask?.className ?? "scanner");
-          videoNode.parentElement?.appendChild(canvasMaskNode);
-          log({ level: "INFO", message: "Setting mask attributes... done." });
-        }
+        // Set the masking attributes and add it to the DOM
+        log({ level: "INFO", message: "Setting mask attributes..." });
+        canvasMaskNode.style.height = inPixels(videoNode.clientHeight);
+        canvasMaskNode.style.width = inPixels(videoNode.clientWidth);
+        canvasMaskNode.style.position = "absolute";
+        canvasMaskNode.style.top = inPixels(videoNode.offsetTop);
+        canvasMaskNode.style.left = inPixels(videoNode.offsetLeft);
+        canvasMaskNode.classList.add("scanner");
+        videoNode.parentElement?.appendChild(canvasMaskNode);
+        log({ level: "INFO", message: "Setting mask attributes... done." });
 
         // Set debug canvas attributes if debugCanvas has been enabled
         if (canvasDebugNode) {
@@ -144,7 +142,7 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
         barcodeProcessWorker.postMessage(canvasScanImageData);
       });
     },
-    [getCanvasDebugNode, log, video.maxWidth, mask?.className]
+    [getCanvasDebugNode, log, video.maxWidth]
   );
 
   return initScanner;
