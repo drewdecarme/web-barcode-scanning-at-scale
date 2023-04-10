@@ -2,20 +2,25 @@ import React, { useCallback, useRef, useState } from "react";
 import { FC, ReactNode, useContext } from "react";
 import { UseScannerLog, UseScannerLogger } from "../src/lib/lib.types";
 
-type GridContextType = {
+type DashboardContextType = {
   logs: UseScannerLog[];
   logger: UseScannerLogger;
   scanResult: string;
   onScan: (e: string) => void;
+  toggleLog: () => void;
 };
-const GridContext = React.createContext<GridContextType | null>(null);
-export type GridProviderProps = {
+const DashboardContext = React.createContext<DashboardContextType | null>(null);
+export type DashboardProviderProps = {
   children: ReactNode;
 };
-export const GridProvider: FC<GridProviderProps> = ({ children }) => {
-  const [logs, setLog] = useState<GridContextType["logs"]>([]);
+export const DashboardProvider: FC<DashboardProviderProps> = ({ children }) => {
+  const [logs, setLog] = useState<DashboardContextType["logs"]>([]);
   const [scanResult, onScan] = useState<string>("");
   const shouldLogRef = useRef<boolean>(true);
+
+  const toggleLog = useCallback(() => {
+    shouldLogRef.current = !shouldLogRef.current;
+  }, []);
 
   /**
    * This is a memoized utility to log messages or add message
@@ -36,17 +41,17 @@ export const GridProvider: FC<GridProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <GridContext.Provider value={{ logs, logger, scanResult, onScan }}>
+    <DashboardContext.Provider value={{ logs, logger, scanResult, onScan, toggleLog }}>
       {children}
-    </GridContext.Provider>
+    </DashboardContext.Provider>
   );
 };
 
-export const useGridContext = (): GridContextType => {
-  const context = useContext(GridContext);
+export const useDashboardContext = (): DashboardContextType => {
+  const context = useContext(DashboardContext);
   if (!context) {
     throw new Error(
-      "'useGridContext()' must be used within a <GridProvider /> component"
+      "'useDashboardContext()' must be used within a <DashboardProvider /> component"
     );
   }
   return context;

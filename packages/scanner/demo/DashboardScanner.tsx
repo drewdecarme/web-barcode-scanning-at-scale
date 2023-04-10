@@ -1,12 +1,12 @@
 import { forwardRef, useMemo } from "react";
 import { Scanner } from "./Scanner";
-import { useGridContext } from "./Grid.context";
+import { useDashboardContext } from "./Dashboard.context";
 
-export type GridScannerProps = JSX.IntrinsicElements["article"];
+export type DashboardScannerProps = JSX.IntrinsicElements["article"];
 
-export const GridScanner = forwardRef<HTMLElement, GridScannerProps>(
-  function GridScanners({ style, ...restProps }, ref) {
-    const { onScan, logger } = useGridContext();
+export const DashboardScanner = forwardRef<HTMLElement, DashboardScannerProps>(
+  function DashboardScanners({ style, ...restProps }, ref) {
+    const { onScan, logger } = useDashboardContext();
 
     return useMemo(
       () => (

@@ -1,26 +1,24 @@
 import "./App.scss";
-import { GridLogs } from "./GridLog";
-import { GridCanvas } from "./GridCanvas";
-import { GridScanner } from "./GridScanner";
-import { GridUtils } from "./GridUtils";
-import { GridResult } from "./GridResult";
+import { DashboardLogs } from "./DashboardLog";
+import { DashboardDebugger } from "./DashboardDebugger";
+import { DashboardScanner } from "./DashboardScanner";
+import { DashboardUtils } from "./DashboardUtils";
+import { DashboardResult } from "./DashboardResult";
 
 import "./scanner.css";
-import { GridProvider } from "./Grid.context";
+import { Dashboard } from "./Dashboard";
 
 function App() {
   return (
-    <div className="app">
-      <GridProvider>
-        <GridUtils />
-        <GridScanner />
-        <GridCanvas>
-          <canvas id="debug" />
-        </GridCanvas>
-        <GridResult />
-        <GridLogs />
-      </GridProvider>
-    </div>
+    <Dashboard>
+      <DashboardUtils />
+      <DashboardScanner />
+      <DashboardDebugger>
+        <canvas id="debug" />
+      </DashboardDebugger>
+      <DashboardResult />
+      <DashboardLogs />
+    </Dashboard>
   );
 }
 
