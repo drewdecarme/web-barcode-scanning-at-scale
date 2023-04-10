@@ -1,9 +1,11 @@
 import { forwardRef, useMemo } from "react";
+import { useDashboardContext } from "./Dashboard.context";
 
-export type GridScanProps = JSX.IntrinsicElements["article"];
+export type DashboardResultProps = JSX.IntrinsicElements["article"];
 
-export const GridScan = forwardRef<HTMLElement, GridScanProps>(
-  function GridScan({ children, style, ...restProps }, ref) {
+export const DashboardResult = forwardRef<HTMLElement, DashboardResultProps>(
+  function DashboardResult({ style, ...restProps }, ref) {
+    const { scanResult } = useDashboardContext();
     return useMemo(
       () => (
         <article
@@ -29,12 +31,12 @@ export const GridScan = forwardRef<HTMLElement, GridScanProps>(
                 whiteSpace: "nowrap",
               }}
             >
-              {children || "No Result"}
+              {scanResult || "No Result"}
             </div>
           </div>
         </article>
       ),
-      [children, ref, restProps, style]
+      [ref, restProps, scanResult, style]
     );
   }
 );

@@ -1,20 +1,45 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { setVideoStream } from "./util.setVideoStream";
 import { UseScannerParams } from "./lib.types";
-import { useScannerDebug } from "./hook.useDebugScanner";
 import { inPixels } from "./util.in-pixels";
-import { decodeBarcode } from "./util.decode-barcode";
+import { useScannerDebugger } from "./hook.useScannerDebugger";
+
+const barcodeScannerWorker = new Worker(
+  new URL("./worker.barcode-scan.ts", import.meta.url),
+  {
+    type: "module",
+  }
+);
+const barcodeProcessWorker = new Worker(
+  new URL("./worker.barcode-process.ts", import.meta.url),
+  {
+    type: "module",
+  }
+);
 
 /**
  * Returns a callback reference to supply to a `video`
  * node that will turn the video on and attempt to
  * read the output if a QR or 1D scannable area is detected
  */
-export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => {
-  const { logs, logMessage, canvasDebugRef } = useScannerDebug(debug);
+export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
+  const { getCanvasDebugNode, log } = useScannerDebugger(debug);
+  const canvasScanRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  const canvasMaskRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  const isFirstVideoTick = useRef(true);
 
-  const maskRef = useRef<HTMLDivElement>(document.createElement("div"));
-  const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+  useEffect(() => {
+    barcodeScannerWorker.addEventListener("message", (event) => {
+      log({ level: "INFO", message: `Result ${event.data}` });
+      onScan(event.data);
+    });
+  }, [log, onScan]);
+
+  useEffect(() => {
+    barcodeProcessWorker.addEventListener("message", () => {
+      log({ level: "INFO", message: "DONE DECODING." });
+    });
+  }, [log]);
 
   /**
    * This is a singular callback that will initialize the video
@@ -26,90 +51,99 @@ export const useScanner = ({ debug, video, mask, onScan }: UseScannerParams) => 
     async (videoNode) => {
       if (!videoNode) return;
 
-      // 1. Set some of the configuration properties
+      // Start the video stream
+      await setVideoStream(videoNode);
+
+      const canvasScanNode = canvasScanRef.current;
+      const canvasMaskNode = canvasMaskRef.current;
+      const canvasDebugNode = getCanvasDebugNode();
+
+      // Set the video properties
+      log({ level: "INFO", message: "Setting video properties..." });
       videoNode.style.maxWidth = inPixels(video.maxWidth);
       videoNode.autoplay = true;
-
-      // 2. Get the video stream and set it to the video element
-      await setVideoStream(videoNode);
+      log({ level: "INFO", message: "Setting video properties... done." });
 
       // 3. Set some attributes of our elements once the video has initialized
       videoNode.addEventListener("loadedmetadata", () => {
-        // Set scanner canvas attributes
-        logMessage({ level: "INFO", message: "Setting canvas attributes..." });
-        canvasRef.current.width = videoNode.videoWidth;
-        canvasRef.current.height = videoNode.videoHeight;
-        logMessage({ level: "INFO", message: "Setting canvas attributes... done." });
+        // Set the scanner to the _real_ height & width of the video
+        log({ level: "INFO", message: "Setting scanner attributes..." });
+        canvasScanNode.width = videoNode.videoWidth;
+        canvasScanNode.height = videoNode.videoHeight;
+        log({ level: "INFO", message: "Setting canvas attributes... done." });
 
-        // Set mask attributes if masking has been enabled
-        if (mask?.className) {
-          logMessage({ level: "INFO", message: "Setting mask attributes..." });
-          maskRef.current.style.height = inPixels(videoNode.clientHeight);
-          maskRef.current.style.width = inPixels(videoNode.clientWidth);
-          maskRef.current.style.position = "absolute";
-          maskRef.current.style.top = inPixels(videoNode.offsetTop);
-          maskRef.current.style.left = inPixels(videoNode.offsetLeft);
-          maskRef.current.classList.add(mask?.className ?? "scanner");
-          videoNode.parentElement?.appendChild(maskRef.current);
-          logMessage({ level: "INFO", message: "Setting mask attributes... done." });
-        }
+        // Set the masking attributes and add it to the DOM
+        log({ level: "INFO", message: "Setting mask attributes..." });
+        canvasMaskNode.style.height = inPixels(videoNode.clientHeight);
+        canvasMaskNode.style.width = inPixels(videoNode.clientWidth);
+        canvasMaskNode.style.position = "absolute";
+        canvasMaskNode.style.top = inPixels(videoNode.offsetTop);
+        canvasMaskNode.style.left = inPixels(videoNode.offsetLeft);
+        canvasMaskNode.classList.add("scanner");
+        videoNode.parentElement?.appendChild(canvasMaskNode);
+        log({ level: "INFO", message: "Setting mask attributes... done." });
 
         // Set debug canvas attributes if debugCanvas has been enabled
-        if (canvasDebugRef.current) {
-          logMessage({ level: "DEBUG", message: "Set canvasDebug attributes" });
-          canvasDebugRef.current.width = videoNode.videoWidth;
-          canvasDebugRef.current.height = videoNode.videoHeight;
-          canvasDebugRef.current.style.maxWidth = inPixels(video.maxWidth);
+        if (canvasDebugNode) {
+          log({ level: "DEBUG", message: "Set canvasDebug attributes" });
+          canvasDebugNode.width = videoNode.videoWidth;
+          canvasDebugNode.height = videoNode.videoHeight;
+          canvasDebugNode.style.maxWidth = inPixels(video.maxWidth);
         }
       });
 
-      // 4. Get the context of both canvas elements
-      // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
-      const canvasContext = canvasRef.current.getContext("2d", {
-        alpha: false,
+      // Get the contexts
+      const canvasScanContext = canvasScanRef.current.getContext("2d", {
         willReadFrequently: true,
       });
+      const canvasDebugScanContext = canvasDebugNode?.getContext("2d") ?? null;
 
-      if (!canvasContext) {
-        return logMessage({ level: "ERROR", message: "CanvasContext is null" });
+      // short circuit if the canvasScanContext doesn't exist.
+      if (!canvasScanContext) {
+        throw new Error("Cannot get the necessary context to decode the scan.");
       }
 
-      const canvasDebugContext = canvasDebugRef.current
-        ? canvasDebugRef.current.getContext("2d", {
-            alpha: false,
-            willReadFrequently: true,
-          })
-        : null;
+      const offscreenCanvas = canvasMaskNode.transferControlToOffscreen();
 
-      // 6. Listen to the timeupdate event on the video
-      // LINK - https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
+      // When the next tick of the video occurs
       videoNode.addEventListener("timeupdate", () => {
-        logMessage({ level: "TRACE", message: "Video tick" });
+        log({ level: "TRACE", message: "Video tick" });
 
-        if (canvasDebugContext) {
-          canvasDebugContext.drawImage(videoNode, 0, 0);
+        if (canvasDebugScanContext) {
+          canvasDebugScanContext.drawImage(videoNode, 0, 0);
         }
 
-        // 7. Draw the video image onto the in memory canvas and convert it get it's image data
-        canvasContext.drawImage(videoNode, 0, 0);
-        const canvasImageData = canvasContext.getImageData(
-          0,
-          0,
-          videoNode.videoWidth,
-          videoNode.videoHeight
-        );
-        // 8. Detect a barcode
-        const barcode = decodeBarcode(canvasImageData);
-        if (!barcode) return;
+        if (!canvasScanContext) return;
 
-        // 8. Get the value
-        const text = barcode.getText();
-        onScan(text);
-        logMessage({ level: "DEBUG", message: text });
+        canvasScanContext.drawImage(videoNode, 0, 0);
+        const canvasScanImageData = canvasScanContext.getImageData(
+          0,
+          0,
+          canvasScanNode.width,
+          canvasScanNode.height
+        );
+
+        if (isFirstVideoTick.current) {
+          barcodeScannerWorker.postMessage(
+            {
+              canvasMaskNode: offscreenCanvas,
+              canvasScanImageData,
+            },
+            // transferable object
+            [offscreenCanvas]
+          );
+
+          isFirstVideoTick.current = false;
+        } else {
+          // serializable structured clone
+          barcodeScannerWorker.postMessage({ canvasScanImageData });
+        }
+
+        barcodeProcessWorker.postMessage(canvasScanImageData);
       });
     },
-    [video.maxWidth, canvasDebugRef, logMessage, mask?.className, onScan]
+    [getCanvasDebugNode, log, video.maxWidth]
   );
 
-  return { initScanner, logs };
+  return initScanner;
 };
