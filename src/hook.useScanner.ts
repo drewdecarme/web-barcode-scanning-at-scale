@@ -1,23 +1,12 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { setVideoStream } from "./util.setVideoStream";
 import { inPixels } from "./util.in-pixels";
 import { useScannerDebugger } from "./hook.useScannerDebugger";
 import { UseScannerParams } from "./hook.useScanner.types";
+import { scanBarcode } from "./lib.barcode-scan";
+import { processBarcode } from "./lib.barcode-process";
 
 export * from "./hook.useScanner.types";
-
-const barcodeScannerWorker = new Worker(
-  new URL("./worker.barcode-scan.ts", import.meta.url),
-  {
-    type: "module",
-  }
-);
-const barcodeProcessWorker = new Worker(
-  new URL("./worker.barcode-process.ts", import.meta.url),
-  {
-    type: "module",
-  }
-);
 
 /**
  * Returns a callback reference to supply to a `video`
@@ -28,20 +17,6 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
   const { getCanvasDebugNode, log } = useScannerDebugger(debug);
   const canvasScanRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
   const canvasMaskRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
-  const isFirstVideoTick = useRef(true);
-
-  useEffect(() => {
-    barcodeScannerWorker.addEventListener("message", (event) => {
-      log({ level: "INFO", message: `Result ${event.data}` });
-      onScan(event.data);
-    });
-  }, [log, onScan]);
-
-  useEffect(() => {
-    barcodeProcessWorker.addEventListener("message", () => {
-      log({ level: "INFO", message: "DONE DECODING." });
-    });
-  }, [log]);
 
   /**
    * This is a singular callback that will initialize the video
@@ -125,26 +100,20 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
           canvasScanNode.height
         );
 
-        if (isFirstVideoTick.current) {
-          barcodeScannerWorker.postMessage(
-            {
-              canvasMaskNode: offscreenCanvas,
-              canvasScanImageData,
-            },
-            // transferable object
-            [offscreenCanvas]
-          );
+        const result = scanBarcode({
+          canvasMaskNode: offscreenCanvas,
+          canvasScanImageData,
+        });
 
-          isFirstVideoTick.current = false;
-        } else {
-          // serializable structured clone
-          barcodeScannerWorker.postMessage({ canvasScanImageData });
-        }
+        if (!result) return;
+        onScan(result);
+        log({ level: "INFO", message: `Result: ${result}` });
 
-        barcodeProcessWorker.postMessage(canvasScanImageData);
+        processBarcode(canvasScanImageData);
+        log({ level: "INFO", message: `Encoding complete` });
       });
     },
-    [getCanvasDebugNode, log, video.maxWidth]
+    [getCanvasDebugNode, log, onScan, video.maxWidth]
   );
 
   return initScanner;
