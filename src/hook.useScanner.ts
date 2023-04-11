@@ -109,7 +109,7 @@ export const useScanner = ({ debug, video, onScan }: UseScannerParams) => {
         onScan(result);
         log({ level: "INFO", message: `Result: ${result}` });
 
-        processBarcode(canvasScanImageData);
+        // processBarcode(canvasScanImageData);
         log({ level: "INFO", message: `Encoding complete` });
       });
     },
