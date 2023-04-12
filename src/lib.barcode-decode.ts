@@ -20,6 +20,7 @@ const formats = [
   BarcodeFormat.CODE_128,
   BarcodeFormat.UPC_A,
   BarcodeFormat.UPC_E,
+  BarcodeFormat.EAN_13,
 ];
 
 hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
