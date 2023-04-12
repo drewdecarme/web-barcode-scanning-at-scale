@@ -1,5 +1,5 @@
 import { useRef, useCallback } from "react";
-import { UseScannerLogger, UseScannerParams } from "./lib.types";
+import { UseScannerParams, UseScannerLogger } from "./hook.useScanner.types";
 
 export const useScannerDebugger = (debug: UseScannerParams["debug"]) => {
   const canvasDebugRef = useRef<HTMLCanvasElement | null>(null);

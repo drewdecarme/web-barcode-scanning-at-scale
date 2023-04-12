@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { FC, ReactNode, useContext } from "react";
-import { UseScannerLog, UseScannerLogger } from "../src/lib/lib.types";
+import { UseScannerLog, UseScannerLogger } from "../src";
 
 type DashboardContextType = {
   logs: UseScannerLog[];
